@@ -1,28 +1,28 @@
-from __future__ import print_function
+from __future__ import print_function # python 2와 3를 동시에 사용할 수 있도록 함 print함수 괄호 안한거 상관없게 하도록 함
 
-import sys
-import wave
+import sys # __name__에서 쓰임 왜쓰일까?
+import wave # https://iamaman.tistory.com/495
 
-from io import StringIO
+from io import StringIO # 파일 입출력 // .write(), .read(), .seek()
 
-import alsaaudio
-import colorama
-import numpy as np
+import alsaaudio # 오디오 녹음
+import colorama # 터미널 글자색이나 배경색 바꿔주는거
+import numpy as np # np로 호출하는게 관례가 됨 수치해석이나 통계관련 기능 구현에 필요
 
-from reedsolo import RSCodec, ReedSolomonError
-from termcolor import cprint
-from pyfiglet import figlet_format
+from reedsolo import RSCodec, ReedSolomonError # encode decode https://pypi.org/project/reedsolo/
+from termcolor import cprint # 터미널 글자에 대한 설정
+from pyfiglet import figlet_format # ASCII ART를 위한.. 이거였구만
 
-HANDSHAKE_START_HZ = 8192
-HANDSHAKE_END_HZ = 8192 + 512
+HANDSHAKE_START_HZ = 8192 # chirp 의 주파수 대역의 시작?
+HANDSHAKE_END_HZ = 8192 + 512 # 아마 여기까지인듯 https://en.wikipedia.org/wiki/Audio_frequency
+ 
+START_HZ = 1024 # 뭘까
+STEP_HZ = 256 # 이건 또 뭐고
+BITS = 4 # 
 
-START_HZ = 1024
-STEP_HZ = 256
-BITS = 4
+FEC_BYTES = 4 # Forward Error Correction
 
-FEC_BYTES = 4
-
-def stereo_to_mono(input_file, output_file):
+def stereo_to_mono(input_file, output_file): # decode_file 함수에서 쓰임
     inp = wave.open(input_file, 'r')
     params = list(inp.getparams())
     params[0] = 1 # nchannels
@@ -40,7 +40,7 @@ def stereo_to_mono(input_file, output_file):
     inp.close()
     out.close()
 
-def yield_chunks(input_file, interval):
+def yield_chunks(input_file, interval): # decode_file 함수에서 쓰임
     wav = wave.open(input_file)
     frame_rate = wav.getframerate()
 
@@ -54,7 +54,7 @@ def yield_chunks(input_file, interval):
 
         yield frame_rate, np.fromstring(chunk, dtype=np.int16)
 
-def dominant(frame_rate, chunk):
+def dominant(frame_rate, chunk): # decode_file, listen_linux 함수에서 쓰임
     #print("chunk",chunk)
     w = np.fft.fft(chunk)
     #print("w:",w)
@@ -66,10 +66,10 @@ def dominant(frame_rate, chunk):
     #print("peak_freq",peak_freq)
     return abs(peak_freq * frame_rate) # in Hz
 
-def match(freq1, freq2):
+def match(freq1, freq2): # listen_linux 함수에서 쓰임
     return abs(freq1 - freq2) < 20
 
-def decode_bitchunks(chunk_bits, chunks):
+def decode_bitchunks(chunk_bits, chunks): # extract_packet 함수에서 
     out_bytes = []
 
     next_read_chunk = 0
@@ -107,11 +107,11 @@ def decode_bitchunks(chunk_bits, chunks):
 
     return out_bytes
 
-def decode_file(input_file, speed):
+def decode_file(input_file, speed): # 왜 if __name__ == '__main__': 에 주석처리 되어 있을까
     wav = wave.open(input_file)
     if wav.getnchannels() == 2:
         mono = StringIO()
-        stereo_to_mono(input_file, mono)
+        stereo_to_mono(input_file, mono) 
 
         mono.seek(0)
         input_file = mono
@@ -123,16 +123,16 @@ def decode_file(input_file, speed):
         print("{} => {}".format(offset, dom))
         offset += 1
 
-def extract_packet(freqs):
+def extract_packet(freqs): # listen_linux 함수에서 쓰임
     freqs = freqs[::2]
     bit_chunks = [int(round((f - START_HZ) / STEP_HZ)) for f in freqs]
     bit_chunks = [c for c in bit_chunks[1:] if 0 <= c < (2 ** BITS)]
     return bytearray(decode_bitchunks(BITS, bit_chunks))
 
-def display(s):
+def display(s): # listen_linux 함수에서 쓰임
     cprint(figlet_format(s.replace(' ', '   '), font='doom'), 'yellow')
 
-def listen_linux(frame_rate=44100, interval=0.1):
+def listen_linux(frame_rate=44100, interval=0.1): # 사실상 main함수로 봐야 함
 
     mic = alsaaudio.PCM(alsaaudio.PCM_CAPTURE, alsaaudio.PCM_NORMAL)
     mic.setchannels(1)
@@ -174,7 +174,7 @@ def listen_linux(frame_rate=44100, interval=0.1):
             in_packet = True
 
 if __name__ == '__main__':
-    colorama.init(strip=not sys.stdout.isatty())
+    colorama.init(strip=not sys.stdout.isatty()) # 터미널 글자색 관련 설정
 
     #decode_file(sys.argv[1], float(sys.argv[2]))
-    listen_linux()
+    listen_linux() # main함수에 
