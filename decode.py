@@ -13,8 +13,8 @@ from reedsolo import RSCodec, ReedSolomonError  # encode decode https://pypi.org
 from termcolor import cprint  # 터미널 글자에 대한 설정
 from pyfiglet import figlet_format  # ASCII ART를 위한.. 이거였구만
 
-HANDSHAKE_START_HZ = 8192  # Handshake 시작 주파수
-HANDSHAKE_END_HZ = 8192 + 512  # Handshake 끝 주파수
+HANDSHAKE_START_HZ = 8192  # Handshake 시작 주파수 // 송신자와 수신자가 통신을 시작하는 약속하는 단계
+HANDSHAKE_END_HZ = 8192 + 512  # Handshake 끝 주파수 // 송신자와 수신자가 데이터 수집 종료를 약속하는 단
 
 START_HZ = 1024  # 뭘까
 STEP_HZ = 256  # 이건 또 뭐고
@@ -57,16 +57,17 @@ FEC_BYTES = 4  # Forward Error Correction
 #         yield frame_rate, np.fromstring(chunk, dtype=np.int16)
 
 
-def dominant(frame_rate, chunk):  # decode_file, listen_linux 함수에서 쓰임 //
-    print("chunk", chunk)
-    w = np.fft.fft(chunk)
-    print("w:", w)
-    freqs = np.fft.fftfreq(len(chunk))
-    print("freqs:", freqs)
-    peak_coeff = np.argmax(np.abs(w))
-    print("peak_coeff:", peak_coeff)
+def dominant(frame_rate, chunk):  # decode_file, listen_linux 함수에서 쓰임 // 수신한 청크의 주파수를 dominant() 함수로 계산
+    #print("chunk", chunk)
+    w = np.fft.fft(chunk) # 이것도 푸리에 변환으로 뭔가를 하고있네
+    #print("w:", w)
+    freqs = np.fft.fftfreq(len(chunk)) # 푸리에변환을 통해 주파수를 찾는 것인가..
+    #print("freqs:", freqs)
+    peak_coeff = np.argmax(np.abs(w)) # 피크 계수
+    #print("peak_coeff:", peak_coeff)
     peak_freq = freqs[peak_coeff]
-    print("peak_freq", peak_freq)
+    #print("peak_freq", peak_freq) # 피크주파수
+    print(abs(peak_freq * frame_rate))
     return abs(peak_freq * frame_rate)  # in Hz
 
 
@@ -74,7 +75,7 @@ def match(freq1, freq2):  # listen_linux 함수에서 쓰임 // 두 수의 차�
     return abs(freq1 - freq2) < 20 # abs() 함수는 내장함수로 절대값 구하는 함수임
 
 
-def decode_bitchunks(chunk_bits, chunks):  # extract_packet 함수에서 쓰임
+def decode_bitchunks(chunk_bits, chunks):  # extract_packet 함수에서 return 으로 반환할 때 쓰임
     out_bytes = []
 
     next_read_chunk = 0
@@ -84,21 +85,21 @@ def decode_bitchunks(chunk_bits, chunks):  # extract_packet 함수에서 쓰임
     bits_left = 8
     while next_read_chunk < len(chunks):
         can_fill = chunk_bits - next_read_bit
-        print("can:", can_fill)
+        #print("can:", can_fill)
         to_fill = min(bits_left, can_fill)
-        print("to:", to_fill)
+        #print("to:", to_fill)
         offset = chunk_bits - next_read_bit - to_fill
-        print("offset:", offset)
+        #print("offset:", offset)
         byte <<= to_fill
-        print("byte:", byte)
+        #print("byte:", byte)
         shifted = chunks[next_read_chunk] & (((1 << to_fill) - 1) << offset)
-        print("shifted:", shifted)
+        #print("shifted:", shifted)
         byte |= shifted >> offset;
-        print("byte", byte)
+        #print("byte", byte)
         bits_left -= to_fill
-        print("bits_left:", bits_left)
+        #print("bits_left:", bits_left)
         next_read_bit += to_fill
-        print("next_read:", next_read_bit)
+        #print("next_read:", next_read_bit)
         if bits_left <= 0:
             out_bytes.append(byte)
             byte = 0
@@ -124,7 +125,7 @@ def decode_bitchunks(chunk_bits, chunks):  # extract_packet 함수에서 쓰임
 #
 #     offset = 0
 #     for frame_rate, chunk in yield_chunks(input_file, speed / 2): # yield_chunks() // ????
-#         dom = dominant(frame_rate, chunk)  # dominant()
+#         dom = dominant(frame_rate, chunk)  # dominant() // 수신한 chunk의 주파수를 dominant() 함수로 계산
 #         print("{} => {}".format(offset, dom))
 #         offset += 1
 
@@ -136,13 +137,13 @@ def extract_packet(freqs):  # listen_linux 함수에서 쓰임
     return bytearray(decode_bitchunks(BITS, bit_chunks))  # decode_bitchunks()
 
 
-def display(s):  # listen_linux 함수에서 쓰임 // 글자색을 노란색으로 바꾸는
+def display(s):  # listen_linux 함수에서 쓰임 // 글자색을 노란색으로 바꾸는 // figlet_format은 ASCII아트 형태로
     cprint(figlet_format(s.replace(' ', '   '), font='doom'), 'yellow')
 
 
 def listen_linux(frame_rate=44100, interval=0.1):  # 사실상 main함수로 봐야 함
 
-    mic = alsaaudio.PCM(alsaaudio.PCM_CAPTURE, alsaaudio.PCM_NORMAL)
+    mic = alsaaudio.PCM(alsaaudio.PCM_CAPTURE, alsaaudio.PCM_NORMAL) # 리눅스 사운드 구동을 위한 alsa 드라이버를 이용하여 PCM 코덱을 호출
     mic.setchannels(1)
     mic.setrate(44100)
     mic.setformat(alsaaudio.PCM_FORMAT_S16_LE)
@@ -159,31 +160,31 @@ def listen_linux(frame_rate=44100, interval=0.1):  # 사실상 main함수로 봐
         if not l:
             continue
 
-        chunk = np.fromstring(data, dtype=np.int16) # XML 형태로 저장?
-        dom = dominant(frame_rate, chunk) # dominant()
+        chunk = np.fromstring(data, dtype=np.int16) # fromstring()함수는 XML 형태로 저장해 주는 것?
+        dom = dominant(frame_rate, chunk) # dominant() // 수신한 chunk의 주파수를 dominant() 함수로 계산
 
-        if in_packet and match(dom, HANDSHAKE_END_HZ): # match() // 두 수의 차의 절대값 구하는 과정
-            byte_stream = extract_packet(packet) # extract_packet()
-            print("original code", byte_stream)
+        if in_packet and match(dom, HANDSHAKE_END_HZ): # match() // (두 수의 차의 절대값 구하는 과정) 핸드쉐이크 종료 주파수를 수신하고 디코딩을 시작
+            byte_stream = extract_packet(packet) # extract_packet() [ decode_bitchunks() ]
+            print("original code", byte_stream) # start 다음줄 시작
 
             try:
-                byte_stream = RSCodec(FEC_BYTES).decode(byte_stream) #
+                byte_stream = RSCodec(FEC_BYTES).decode(byte_stream) # RSCodec() 함수로 Reed Solomon 코딩된 FEC 바이트를 디코딩
                 byte_stream = byte_stream.decode("utf-8")
-                display(byte_stream) # display() // 글자색 바꾸기
-                display("") # display() // 글자색 바꾸기
+                display(byte_stream) # display() // 디코딩된 결과 출력
+                display("") # display() // 공백 출력
             except ReedSolomonError as e:
-                print("{}: {}".format(e, byte_stream))
+                print("{}: {}".format(e, byte_stream)) # ??
 
             packet = []
             in_packet = False
         elif in_packet:
             packet.append(dom)
-        elif match(dom, HANDSHAKE_START_HZ): # match() // 두 수의 차의 절대값 구하는 과
+        elif match(dom, HANDSHAKE_START_HZ): # match() // 두 수의 차의 절대값 구하는 과정
             in_packet = True
 
 
 if __name__ == '__main__':
     colorama.init(strip=not sys.stdout.isatty())  # 터미널 글자색 관련 설정
 
-    # decode_file(sys.argv[1], float(sys.argv[2]))
-    listen_linux()  # main함수에
+    # decode_file(sys.argv[1], float(sys.argv[2])) # 이건 .wav 파일을 읽어오는 경우 실행
+    listen_linux()  # main함수에 해당
