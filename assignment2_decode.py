@@ -13,12 +13,12 @@ from reedsolo import RSCodec, ReedSolomonError  # encode decode https://pypi.org
 from termcolor import cprint  # 터미널 글자에 대한 설정
 from pyfiglet import figlet_format  # ASCII ART를 위한.. 이거였구만
 
-HANDSHAKE_START_HZ = 4096  # Handshake 시작 주파수 // 송신자와 수신자가 통신을 시작하는 약속하는 단계
-HANDSHAKE_END_HZ = 5120 + 1024  # Handshake 끝 주파수 // 송신자와 수신자가 데이터 수집 종료를 약속하는 단계
+HANDSHAKE_START_HZ = 4100 # Handshake 시작 주파수 // 송신자와 수신자가 통신을 시작하는 약속하는 단계
+HANDSHAKE_END_HZ = 5640 # Handshake 끝 주파수 // 송신자와 수신자가 데이터 수집 종료를 약속하는 단계
 
 START_HZ = 1024
 STEP_HZ = 256
-BITS = 4
+BITS = 2 
 
 FEC_BYTES = 4  # Forward Error Correction
 
@@ -59,7 +59,7 @@ def dominant(frame_rate, chunk):  # decode_file, listen_linux 함수에서 쓰�
     freqs = np.fft.fftfreq(len(chunk))
     peak_coeff = np.argmax(np.abs(w))
     peak_freq = freqs[peak_coeff]
-    print(abs(peak_freq * frame_rate)) # hz를 출력하기 위해 넣은 코
+#    print(abs(peak_freq * frame_rate)) # hz를 출력하기 위해 넣은 코
     return abs(peak_freq * frame_rate) # in Hz
 
 def match(freq1, freq2):  # listen_linux 함수에서 쓰임 // 두 수의 차의 절대값을 구하는 함수
@@ -91,7 +91,7 @@ def decode_bitchunks(chunk_bits, chunks):  # extract_packet 함수에서 return 
         if next_read_bit >= chunk_bits:
             next_read_chunk += 1
             next_read_bit -= chunk_bits
-
+#    print(out_bytes)
     return out_bytes
 
 # def decode_file(input_file, speed):
