@@ -73,12 +73,12 @@ def decode_bitchunks(chunk_bits, chunks):  # extract_packet 함수에서 return 
 
     byte = 0
     bits_left = 8
-    while next_read_chunk < len(chunks):
-        can_fill = chunk_bits - next_read_bit
-        to_fill = min(bits_left, can_fill)
-        offset = chunk_bits - next_read_bit - to_fill
-        byte <<= to_fill
-        shifted = chunks[next_read_chunk] & (((1 << to_fill) - 1) << offset)
+    while next_read_chunk < len(chunks):  ## 매개변수 chunks의 길이가 next_read_chunk 보다 크다면
+        can_fill = chunk_bits - next_read_bit  ## 매개변수 chunk_bits와 next_read_bit의 차를 can_fill 변수에 넣음
+        to_fill = min(bits_left, can_fill)  ## bits_left와 can_fill 중 작은값을 to_fill 변수에 넣음
+        offset = chunk_bits - next_read_bit - to_fill  ## can_fill과 to_fill 의 차를 offset 변수에 넣음
+        byte <<= to_fill  ## ??
+        shifted = chunks[next_read_chunk] & (((1 << to_fill) - 1) << offset) ##
         byte |= shifted >> offset;
         bits_left -= to_fill
         next_read_bit += to_fill
@@ -91,7 +91,6 @@ def decode_bitchunks(chunk_bits, chunks):  # extract_packet 함수에서 return 
         if next_read_bit >= chunk_bits:
             next_read_chunk += 1
             next_read_bit -= chunk_bits
-#    print(out_bytes)
     return out_bytes
 
 # def decode_file(input_file, speed):
@@ -111,10 +110,13 @@ def decode_bitchunks(chunk_bits, chunks):  # extract_packet 함수에서 return 
 #         offset += 1
 
 def extract_packet(freqs):  # listen_linux 함수에서 쓰임
-    freqs = freqs[::2]
-    bit_chunks = [int(round((f - START_HZ) / STEP_HZ)) for f in freqs]
-    bit_chunks = [c for c in bit_chunks[1:] if 0 <= c < (2 ** BITS)]
-    return bytearray(decode_bitchunks(BITS, bit_chunks))
+    freqs = freqs[::2]  ## 2개씩 끊어서 가져옴
+    bit_chunks = [int(round((f - START_HZ) / STEP_HZ)) for f in freqs]  ## freqs의 원소와 start_hz의 차를 step_hz로 나누고 반올림한 정수값을 얻어 배열에 넣음
+    bit_chunks = [c for c in bit_chunks[1:] if 0 <= c < (2 ** BITS)]  ## BITS가 여기에
+# for c in bit_chunks[1:]: # 두번째 위치에있는 원소부터 끝까지의 갯수만큼 for문 돌림
+#     if 0 <= c < (2 ** BITS): # 해당 원소가 0보다 크거나 같고 2^BITS보다 작으면 아랫줄 실행
+#         bit_chunks.append(c) # bit_chunks 배열 마지막에 c원소를 넣음
+    return bytearray(decode_bitchunks(BITS, bit_chunks)) ## bytearray는 1바이트 단위의 값을 연속적으로 저장하는 시퀀스 자료형임
 
 def display(s):  # listen_linux 함수에서 쓰임 // 글자색을 노란색으로 바꾸는 // figlet_format은 ASCII아트 형태로
     cprint(figlet_format(s.replace(' ', '   '), font='doom'), 'yellow')
